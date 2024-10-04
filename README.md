@@ -18,7 +18,7 @@ Related 2nd article: https://stereopi.com/blog/opencv-comparing-speed-c-and-pyth
 
 ### Buster Raspbian OpenCV image, OCT 2024 (Python code only, 2.28Gb, needs 8Gb micro SD or eMMC):
 
-[MediaFire]([https://drive.google.com/file/d/1eIt-qJDd_aeyK72cqOgRzUGfm5TZmfMD/view?usp=sharing](https://www.mediafire.com/folder/nzr90vj8wp1l3/StereoPi_Images))
+[MediaFire]([https://drive.google.com/file/d/1eIt-qJDd_aeyK72cqOgRzUGfm5TZmfMD/view?usp=sharing](https://www.mediafire.com/folder/nzr90vj8wp1l3/StereoPi_Images)
 
 
 ### Want to prepare OpenCV Raspbian Buster image by yourself?
