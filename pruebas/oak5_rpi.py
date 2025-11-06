@@ -75,11 +75,11 @@ logger.info("Configurando cámaras mono...")
 # Configuración de cámaras
 mono_resolution = RESOLUTION
 mono_left.setResolution(mono_resolution)
-mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_B)
+mono_left.setCamera("left")
 mono_left.setFps(FPS)
 
 mono_right.setResolution(mono_resolution)
-mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_C)
+mono_right.setCamera("right")
 mono_right.setFps(FPS)
 
 logger.info("Configurando módulo de profundidad...")
@@ -120,7 +120,7 @@ config.postProcessing.spatialFilter.numIterations = 5
 #config.postProcessing.temporalFilter.delta = 30
 depth.initialConfig.set(config)
 
-depth.setDepthAlign(dai.CameraBoardSocket.CAM_B)
+depth.setDepthAlign(dai.CameraBoardSocket.LEFT)
 
 logger.info("Enlazando nodos del pipeline...")
 
