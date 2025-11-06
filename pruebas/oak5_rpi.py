@@ -123,7 +123,7 @@ config.postProcessing.spatialFilter.numIterations = 5
 depth.initialConfig.set(config)
 
 #depth.setDepthAlign(dai.CameraBoardSocket.LEFT)
-depth.setDepthAlign(dai.CameraBoardSocket.LEFT)
+depth.setDepthAlign(dai.CameraBoardSocket.CAM_C)
 
 logger.info("Enlazando nodos del pipeline...")
 
