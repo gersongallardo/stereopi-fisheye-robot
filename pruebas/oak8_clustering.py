@@ -13,11 +13,15 @@ FPS = 5
 FRAME_TARGET = 50
 RESOLUTION = dai.MonoCameraProperties.SensorResolution.THE_400_P
 
-# Parámetros de filtrado
+# Parámetros de filtrado (clustering)
 ENABLE_CLUSTERING = True  # Filtrado por clustering (recomendado para silos)
-CLUSTER_EPS = 0.05  # Distancia máxima entre puntos del mismo cluster (metros)
-CLUSTER_MIN_POINTS = 50  # Mínimo de puntos para formar un cluster
+CLUSTER_EPS = 0.18  # Distancia máxima entre puntos del mismo cluster (metros)
+CLUSTER_MIN_POINTS = 80  # Mínimo de puntos para formar un cluster
 
+#para el tamaño del archivo
+DOWNSAMPLE_VOXEL_SIZE = 0.04  # Tamaño del voxel para reducir la densidad de puntos
+
+#outliers
 ENABLE_STATISTICAL_FILTER = True  # Filtro estadístico adicional
 STAT_NB_NEIGHBORS = 20  # Número de vecinos a considerar
 STAT_STD_RATIO = 2.0  # Ratio de desviación estándar
@@ -85,7 +89,7 @@ mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_B)
 mono_left.setFps(FPS)
 
 mono_right.setResolution(mono_resolution)
-mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_C)
+mono_right.setBoardSocket(dai.CameraBoardSocket.CAM_C)
 #mono_right.setCamera("right")
 mono_right.setFps(FPS)
 
@@ -169,7 +173,7 @@ try:
             
             # 1. Downsampling para reducir puntos (PRIMERO)
             logger.info("Aplicando downsampling...")
-            pcd = pcd.voxel_down_sample(voxel_size=0.01)
+            pcd = pcd.voxel_down_sample(voxel_size=DOWNSAMPLE_VOXEL_SIZE)
             logger.info(f"Puntos después de downsampling: {len(pcd.points)}")
             
             # 2. Filtro estadístico de outliers (SEGUNDO - rápido)
