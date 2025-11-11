@@ -15,16 +15,16 @@ RESOLUTION = dai.MonoCameraProperties.SensorResolution.THE_400_P
 
 # Parámetros de filtrado (clustering)
 ENABLE_CLUSTERING = True  # Filtrado por clustering (recomendado para silos)
-CLUSTER_EPS = 0.18  # Distancia máxima entre puntos del mismo cluster (metros)
-CLUSTER_MIN_POINTS = 80  # Mínimo de puntos para formar un cluster
+CLUSTER_EPS = 0.5  # Distancia máxima entre puntos del mismo cluster (metros)
+CLUSTER_MIN_POINTS = 150  # Mínimo de puntos para formar un cluster
 
 #para el tamaño del archivo
-DOWNSAMPLE_VOXEL_SIZE = 0.04  # Tamaño del voxel para reducir la densidad de puntos
+DOWNSAMPLE_VOXEL_SIZE = 0.05  # Tamaño del voxel para reducir la densidad de puntos
 
 #outliers
 ENABLE_STATISTICAL_FILTER = True  # Filtro estadístico adicional
-STAT_NB_NEIGHBORS = 20  # Número de vecinos a considerar
-STAT_STD_RATIO = 2.0  # Ratio de desviación estándar
+STAT_NB_NEIGHBORS = 80  # Número de vecinos a considerar
+STAT_STD_RATIO = 3.5  # Ratio de desviación estándar
 
 # Crear el directorio de logs si no existe
 log_directory = os.path.join(os.getcwd(), 'logs')
