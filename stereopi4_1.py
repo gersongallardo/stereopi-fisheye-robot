@@ -138,9 +138,30 @@ def _parse_int(env_name: str, default_value: int) -> int:
         return default_value
 
 
+def _parse_bool(env_name: str, default_value: bool) -> bool:
+    value = os.getenv(env_name)
+    if value is None:
+        return default_value
+
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "t", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "f", "no", "n", "off"}:
+        return False
+
+    logger.warning(
+        "Valor inválido para %s=%s, usando %s",
+        env_name,
+        value,
+        default_value,
+    )
+    return default_value
+
+
 TARGET_WIDTH = _parse_resolution("TARGET_WIDTH", DEFAULT_TARGET_WIDTH)
 TARGET_HEIGHT = _parse_resolution("TARGET_HEIGHT", DEFAULT_TARGET_HEIGHT)
 CAMERA_ROTATION = _parse_int("CAMERA_ROTATION", 0)
+ENABLE_POINT_CLOUD = _parse_bool("ENABLE_POINT_CLOUD", False)
 
 
 def resolve_output_size(calibration_size: Tuple[int, int]) -> Tuple[int, int]:
@@ -601,34 +622,37 @@ def main() -> None:
             left_rectified_color,
         )
         
-        # Generar nube de puntos
-        scaled_q = scale_q_matrix(qq, scale_x, scale_y)
-        points, mask = compute_point_cloud(disparity, scaled_q)
-        
-        if np.count_nonzero(mask) == 0:
-            logger.error(" No se generaron puntos válidos. Abortando guardado de PLY.")
-            logger.error("   Revisa la calibración y las condiciones de iluminación.")
+        if ENABLE_POINT_CLOUD:
+            # Generar nube de puntos
+            scaled_q = scale_q_matrix(qq, scale_x, scale_y)
+            points, mask = compute_point_cloud(disparity, scaled_q)
+
+            if np.count_nonzero(mask) == 0:
+                logger.error(" No se generaron puntos válidos. Abortando guardado de PLY.")
+                logger.error("   Revisa la calibración y las condiciones de iluminación.")
+            else:
+                # Aplicar filtros manuales
+                mask = apply_neighbor_filter(mask)
+
+                # Downsample y clustering
+                points_filtered, colors_filtered = downsample_points(points, left_rectified_color, mask)
+
+                # Convertir a metros e invertir Z
+                points_filtered = points_filtered / 1000.0
+                points_filtered[:, 2] *= -1
+
+                # Clustering simple
+                points_filtered, colors_filtered = filter_by_density_clustering(points_filtered, colors_filtered)
+
+                # Generar nombres de archivo
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+                filename_base = f'{NODE}_{timestamp}'
+
+                # Guardar PLY
+                ply_path = OUTPUT_DIR / f"{filename_base}.ply"
+                save_ply_binary(ply_path, points_filtered, colors_filtered)
         else:
-            # Aplicar filtros manuales
-            mask = apply_neighbor_filter(mask)
-            
-            # Downsample y clustering
-            points_filtered, colors_filtered = downsample_points(points, left_rectified_color, mask)
-            
-            # Convertir a metros e invertir Z
-            points_filtered = points_filtered / 1000.0
-            points_filtered[:, 2] *= -1
-            
-            # Clustering simple
-            points_filtered, colors_filtered = filter_by_density_clustering(points_filtered, colors_filtered)
-            
-            # Generar nombres de archivo
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-            filename_base = f'{NODE}_{timestamp}'
-            
-            # Guardar PLY
-            ply_path = OUTPUT_DIR / f"{filename_base}.ply"
-            save_ply_binary(ply_path, points_filtered, colors_filtered)
+            logger.info("Generación de nube de puntos deshabilitada (ENABLE_POINT_CLOUD=0)")
         
         # Guardar imagen IR (siempre)
         timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
