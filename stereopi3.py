@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-import os
+import importlib
+import importlib.util
 import logging
-from logging.handlers import RotatingFileHandler
+import os
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Tuple
 
@@ -31,6 +33,10 @@ FRAME_RATE = 15
 DEFAULT_TARGET_WIDTH = 640  # Coincide con OAK-D 400p (ancho)
 DEFAULT_TARGET_HEIGHT = 400
 
+
+_XIMGPROC_SPEC = importlib.util.find_spec("cv2.ximgproc")
+XIMGPROC_MODULE = importlib.import_module("cv2.ximgproc") if _XIMGPROC_SPEC else None
+
 def _parse_resolution(env_name: str, default_value: int) -> int:
     value = os.getenv(env_name)
     if value is None:
@@ -44,6 +50,20 @@ def _parse_resolution(env_name: str, default_value: int) -> int:
         logger.warning("Valor inválido para %s=%s, usando %d", env_name, value, default_value)
 
     return default_value
+
+
+def _parse_int(env_name: str, default_value: int) -> int:
+    value = os.getenv(env_name)
+    if value is None:
+        return default_value
+
+    try:
+        return int(value)
+    except ValueError:
+        logger.warning(
+            "Valor inválido para %s=%s, usando %d", env_name, value, default_value
+        )
+        return default_value
 
 
 def resolve_output_size(calibration_size: Tuple[int, int]) -> Tuple[int, int]:
@@ -66,7 +86,7 @@ def resolve_output_size(calibration_size: Tuple[int, int]) -> Tuple[int, int]:
 
 
 # Captura de frames
-ACCUMULATED_FRAMES = 3
+ACCUMULATED_FRAMES = 30
 
 # Preprocesamiento
 GAUSSIAN_KERNEL = (3, 3)
@@ -83,7 +103,7 @@ WLS_SIGMA = 0.8
 NODE = int(os.getenv('NODE', 0))
 
 # ==================== CONFIGURACIÓN DE LOGGING ====================
-log_directory = OUTPUT_DIR / 'logs'
+log_directory = OUTPUT_DIR / '/home/pi/stereopi-fisheye-robot/logs'
 log_directory.mkdir(parents=True, exist_ok=True)
 
 log_filename = log_directory / f'stereopi_capture_{datetime.now().strftime("%Y%m%d")}.log'
@@ -110,9 +130,14 @@ if not logger.handlers:
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
+    logger.info("Archivo de log diario: %s", log_filename)
+
 
 TARGET_WIDTH = _parse_resolution("TARGET_WIDTH", DEFAULT_TARGET_WIDTH)
 TARGET_HEIGHT = _parse_resolution("TARGET_HEIGHT", DEFAULT_TARGET_HEIGHT)
+
+# Ajuste de orientación de cámara
+CAMERA_ROTATION = _parse_int("CAMERA_ROTATION", 0)
 
 
 # ==================== FUNCIONES ====================
@@ -161,18 +186,21 @@ def load_calibration() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, 
 def capture_stereo_frames(count: int) -> np.ndarray:
     """Captura y promedia múltiples frames estéreo."""
     logger.info("Inicializando cámara StereoPi...")
-    
+
     # Alinear a múltiplos requeridos por la cámara
     cam_width = int((CAM_WIDTH + 31) / 32) * 32
     cam_height = int((CAM_HEIGHT + 15) / 16) * 16
-    
+
     camera = PiCamera(stereo_mode="side-by-side", stereo_decimate=False)
     camera.resolution = (cam_width, cam_height)
     camera.framerate = FRAME_RATE
-    
-    # Rotar 180 grados para corregir orientación
-    camera.rotation = 180
-    
+    rotation = CAMERA_ROTATION % 360
+    camera.rotation = rotation
+    if rotation:
+        logger.info("Rotación de cámara aplicada: %d°", rotation)
+    else:
+        logger.info("Rotación de cámara desactivada")
+
     logger.info("Resolución de cámara: %dx%d", cam_width, cam_height)
     logger.info("Capturando %d frames para promediar...", count)
     
@@ -262,7 +290,7 @@ def split_and_rectify(
 def configure_matchers() -> Tuple[cv2.StereoMatcher, cv2.StereoMatcher, object]:
     """Configura los matchers SGBM con filtro WLS."""
     logger.info("Configurando matchers estéreo...")
-    
+
     block_size = max(3, BLOCK_SIZE)
     block_size += 1 - block_size % 2
     
@@ -282,20 +310,38 @@ def configure_matchers() -> Tuple[cv2.StereoMatcher, cv2.StereoMatcher, object]:
     )
     
     # Matcher derecho y filtro WLS
-    try:
-        ximgproc = cv2.ximgproc
-        matcher_right = ximgproc.createRightMatcher(matcher_left)
-        wls_filter = ximgproc.createDisparityWLSFilter(matcher_left)
+    if XIMGPROC_MODULE is not None:
+        matcher_right = XIMGPROC_MODULE.createRightMatcher(matcher_left)
+        wls_filter = XIMGPROC_MODULE.createDisparityWLSFilter(matcher_left)
         wls_filter.setLambda(WLS_LAMBDA)
         wls_filter.setSigmaColor(WLS_SIGMA)
         logger.info("Filtro WLS activado")
-    except AttributeError:
-        logger.warning("cv2.ximgproc no disponible, usando solo matcher izquierdo")
+    else:
+        logger.info(
+            "Módulo cv2.ximgproc no disponible; se aplicará filtrado alternativo sin WLS"
+        )
         matcher_right = None
         wls_filter = None
     
     logger.info("Matchers configurados: numDisparities=%d, blockSize=%d", NUM_DISPARITIES, block_size)
     return matcher_left, matcher_right, wls_filter
+
+
+def enhance_disparity_without_wls(disparity: np.ndarray) -> np.ndarray:
+    """Aplica un filtrado alternativo cuando ximgproc no está disponible."""
+
+    refined = disparity.copy()
+
+    # Filtrar speckles en dominio de disparidad (requiere formato 16S)
+    disparity_16s = np.round(refined * 16.0).astype(np.int16)
+    cv2.filterSpeckles(disparity_16s, 0, 4000, 64)
+    refined = disparity_16s.astype(np.float32) / 16.0
+
+    # Suavizado espacial para reducir ruido conservando bordes principales
+    refined = cv2.medianBlur(refined, 5)
+    refined = cv2.GaussianBlur(refined, (5, 5), 0)
+
+    return refined
 
 
 def compute_disparity(
@@ -315,7 +361,8 @@ def compute_disparity(
         right_disp = right_matcher.compute(right_rectified, left_rectified).astype(np.float32) / 16.0
         filtered = wls_filter.filter(left_disp, guidance, disparity_map_right=right_disp)
     else:
-        filtered = left_disp
+        filtered = enhance_disparity_without_wls(left_disp)
+        logger.info("Filtrado alternativo aplicado a la disparidad (sin WLS)")
     
     valid_disparities = filtered[filtered > 0]
     if len(valid_disparities) > 0:
