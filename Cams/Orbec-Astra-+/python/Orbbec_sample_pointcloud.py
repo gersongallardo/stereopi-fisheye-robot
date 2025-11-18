@@ -16,6 +16,7 @@ import argparse
 import ctypes
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Iterable, List, Optional
 
@@ -39,6 +40,9 @@ OB_LOG_SEVERITY_ERROR = 3
 
 DEFAULT_TIMEOUT_MS = 100
 
+DEFAULT_OUTPUT_DIR = Path("/home/gerson/Documentos/Camara orbbec")
+DEFAULT_LIBRARY_PATH = Path("/home/gerson/OrbbecSDK/lib/linux_x64/libOrbbecSDK.so")
+DEFAULT_SILO_ID = 1 
 
 # ---------------------------------------------------------------------------
 # ctypes representations of the structures required by the sample.
@@ -527,14 +531,21 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         help="Maximum number of frame requests per capture (default: 10).",
     )
     parser.add_argument(
+        "--capture-id",
+        type=int,
+        default=DEFAULT_SILO_ID,
+        help="Identifier to prefix generated filenames with (e.g., silo index).",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path.cwd(),
+        default=DEFAULT_OUTPUT_DIR,
         help="Directory where the PLY files will be written.",
     )
     parser.add_argument(
         "--library-path",
         type=Path,
+        default=DEFAULT_LIBRARY_PATH,
         help="Optional explicit path to libOrbbecSDK (so/dll).",
     )
     return parser.parse_args(argv)
@@ -582,7 +593,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             modes = [args.mode]
 
         for mode in modes:
-            filename = "rgb_points.ply" if mode == "rgbd" else "points.ply"
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            suffix = "_rgb" if mode == "rgbd" else ""
+            filename = f"{args.capture_id}_{timestamp}{suffix}.ply"
             destination = args.output_dir / filename
             point_format = OB_FORMAT_RGB_POINT if mode == "rgbd" else OB_FORMAT_POINT
             print(f"Capturing {mode.upper()} point cloud to {destination} ...")
