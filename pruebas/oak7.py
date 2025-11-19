@@ -164,9 +164,9 @@ try:
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
             logger.info("Nube de puntos capturada con %s puntos", points.shape[0])
-            #down_pcd = pcd.voxel_down_sample(voxel_size=0.05)
+            down_pcd = pcd.voxel_down_sample(voxel_size=0.05)
             ply_filename = f"{filename}.ply"
-            if o3d.io.write_point_cloud(f'{data_directory}/{ply_filename}', pcd, write_ascii=False):
+            if o3d.io.write_point_cloud(f'{data_directory}/{ply_filename}', down_pcd, write_ascii=False):
                 logger.info("[PLY] Guardado como: %s", ply_filename)
             else:
                 logger.error("No se pudo guardar el archivo PLY: %s", ply_filename)
