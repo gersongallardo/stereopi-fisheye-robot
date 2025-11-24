@@ -30,7 +30,7 @@ CYLINDER_RATIO = 0.75
 # Ángulo máximo con horizontal para considerar superficie de pellet (no pared)
 # Menor valor = más estricto (solo superficies muy horizontales)
 # Mayor valor = más permisivo (acepta superficies más inclinadas)
-HORIZONTAL_ANGLE_DEG = 35.0
+HORIZONTAL_ANGLE_DEG = 25.0
 
 # Radio de búsqueda para estimación de normales
 # Menor valor = normales más locales y sensibles a detalles
@@ -403,7 +403,7 @@ def main() -> None:
             )
         input_path = latest
 
-    logger.info(f"📁 Archivo seleccionado: {input_path}")
+    logger.info(f"Archivo seleccionado: {input_path}")
     
     # Cargar nube de puntos
     point_cloud = load_point_cloud(input_path, logger)
@@ -488,7 +488,7 @@ def main() -> None:
     # Visualizar si se solicita
     if args.visualize:
         logger.info("")
-        logger.info("👁 Visualizando resultado...")
+        logger.info("Visualizando resultado...")
         o3d.visualization.draw_geometries(
             [filtered],
             window_name="Nube filtrada - Paredes eliminadas",
@@ -499,13 +499,13 @@ def main() -> None:
     # Guardar resultado
     logger.info("")
     output_path = build_output_path(input_path, args.output_dir)
-    logger.info(f"💾 Guardando nube filtrada en: {output_path}")
+    logger.info(f"Guardando nube filtrada en: {output_path}")
     
     success = o3d.io.write_point_cloud(output_path, filtered, write_ascii=False)
     if not success:
         raise IOError(f"No se pudo guardar el archivo en {output_path}")
 
-    logger.info("✅ Proceso completado correctamente.")
+    logger.info("Proceso completado correctamente.")
 
 
 if __name__ == "__main__":
