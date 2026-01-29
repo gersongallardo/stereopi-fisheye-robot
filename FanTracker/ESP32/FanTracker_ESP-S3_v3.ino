@@ -38,7 +38,7 @@ Servo thruster;
 enum MissionState { IDLE, ARMING, DESCENT, HOLD, ASCENDING, COMPLETED };
 MissionState missionState = IDLE;
 float targetDepth = 0.0;
-float descentPWM_us = 1625;  // PWM para descender
+float descentPWM_us = 1655;  // PWM para descender
 float holdSeconds = 3.0;    // tiempo manteniendo profundidad
 float armSeconds = 4.0;      // tiempo para armar ESC
 float surfaceBand = 0.3;     // metros cerca de superficie
@@ -889,7 +889,7 @@ void setup() {
   ESP32PWM::allocateTimer(0);
   thruster.setPeriodHertz(50);
   thruster.attach(MOTOR_PIN, MIN_US, MAX_US);
-  thruster.writeMicroseconds(0);
+  setThrusterPWM(NEUTRAL_US);
   Serial.println("Motor T200 configurado en GPIO " + String(MOTOR_PIN));
   
   // --- WiFi ---
